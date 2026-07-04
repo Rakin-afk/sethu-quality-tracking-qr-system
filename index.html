@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SETHU Framework - Dynamic QR & Real-time Supply Chain</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <!-- QRCode.js Library for secure & lightweight QR generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    /* Animated Gradient Background */
+    .bg-gradient-mesh {
+      background-size: 200% 200%;
+      animation: gradientMove 10s ease infinite;
+    }
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    /* Pulsing Scanner laser effect */
+    @keyframes scan {
+      0%, 100% { top: 0%; }
+      50% { top: 100%; }
+    }
+    .scanner-line {
+      animation: scan 2.5s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen overflow-x-hidden">
+
+  <!-- Active Notifications Center -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm"></div>
+
+  <!-- MAIN WRAPPER CONTAINER -->
+  <div id="main-app-container" class="min-h-screen flex flex-col">
+    
+    <!-- Top Global Navbar (Hidden on standalone mobile scan) -->
+    <header id="global-header" class="border-b border-slate-800 bg-slate-950/80 backdrop-blur-md px-6 py-4 sticky top-0 z-40">
+      <div class="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+          <div class="h-10 w-10 rounded-xl bg-emerald-500 flex items-center justify-center font-bold text-white text-lg shadow-lg shadow-emerald-500/20">
+            S
+          </div>
+          <div>
+            <span class="font-extrabold tracking-wider text-xl bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">SETHU</span>
+            <span class="text-xs block text-slate-400 font-medium">Axiom Forge Prototype Simulator</span>
+          </div>
+        </div>
+
+        <!-- Master View Selector -->
+        <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+          <button onclick="switchView('landing')" id="btn-landing" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-emerald-500 text-white shadow">
+            🏠 Landing Page
+          </button>
+          <button onclick="switchView('admin')" id="btn-admin" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200">
+            📊 Live Dashboard
+          </button>
+          <button onclick="switchView('retailer')" id="btn-retailer" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200">
+            🛒 Retailer Portal
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Dynamic Content Workspace -->
+    <div class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8" id="workspace-grid">
+      
+      <!-- Left Column: The Screen Interface (Landing / Admin Dashboard / Retailer) -->
+      <div id="desktop-simulator-column" class="lg:col-span-7 bg-slate-950 rounded-3xl border border-slate-800/80 p-6 md:p-8 shadow-2xl relative flex flex-col justify-between overflow-hidden min-h-[550px]">
+        <!-- Screen Glow Elements -->
+        <div class="absolute -top-10 -left-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div class="absolute -bottom-10 -right-10 w-40 h-40 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+        <!-- LANDING VIEW -->
+        <div id="view-landing" class="space-y-6 flex-1 flex flex-col justify-center">
+          <div class="text-center max-w-lg mx-auto space-y-4">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Supply Chain Transparency Framework
+            </span>
+            <h1 class="text-3xl md:text-4.5xl font-extrabold text-white tracking-tight leading-tight">
+              Verify Every Batch,<br><span class="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">Every Single Time.</span>
+            </h1>
+            <p class="text-sm text-slate-400 leading-relaxed">
+              SETHU smart framework allows judges and consumers to scan product batches to check dynamic ledger updates, geo-scans, and real-time supply chain logs instantly.
+            </p>
+          </div>
+
+          <!-- Dynamic QR Code Card -->
+          <div class="bg-slate-900 border border-slate-800 max-w-sm mx-auto rounded-2xl p-6 text-center shadow-lg relative group">
+            <div class="bg-white p-3.5 rounded-xl inline-block shadow-inner mx-auto mb-4" id="qrcode-container">
+              <!-- QR Code inject node -->
+              <div id="qrcode" class="transition-transform duration-300 group-hover:scale-105"></div>
+            </div>
+            
+            <p class="text-[11px] text-slate-400 mb-4 break-all px-1 bg-slate-950 py-2 rounded-lg border border-slate-800/50 select-all font-mono" id="live-url-text">
+              Detecting Live URL...
+            </p>
+
+            <button onclick="simulateScan('FD-2026-102')" class="w-full bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 hover:from-emerald-400 hover:to-teal-300 font-bold text-xs py-2.5 px-4 rounded-xl shadow-md transition-all duration-200 active:scale-95 flex items-center justify-center gap-2 mb-4">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
+              </svg>
+              Simulate Device Scan
+            </button>
+
+            <!-- Network QR Configurator -->
+            <div class="border-t border-slate-800/80 pt-4 mt-2 text-left">
+              <label class="block text-[11px] font-bold text-slate-300 uppercase tracking-wide mb-1">📶 Real Mobile Scan Setup:</label>
+              <p class="text-[10px] text-slate-400 mb-2 leading-normal">
+                মোবাইল দিয়ে আসল স্ক্যান করতে ল্যাপটপের ওয়াইফাই আইপি অ্যাড্রেস (যেমন: <code class="text-emerald-400">192.168.0.105</code>) এবং পোর্ট নিচে বসিয়ে কিউআর কোড জেনারেট করুন।
+              </p>
+              <div class="flex gap-2">
+                <input type="text" id="local-ip-input" placeholder="e.g. 192.168.0.105:5500" class="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-emerald-500 font-mono">
+                <button onclick="updateIPAddress()" class="bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 text-[11px] font-semibold px-3 py-1 rounded-lg hover:bg-emerald-500 hover:text-slate-950 transition active:scale-95">
+                  Generate
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="local-file-warning" class="hidden text-center text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-xl p-3 max-w-sm mx-auto">
+            ⚠️ <strong>Local File Detected:</strong> আপনি ব্রাউজারে সরাসরি লোকাল ফাইল রান করছেন। রিয়েল মোবাইল টেস্ট করতে VS Code-এর <strong>Live Server</strong> এক্সটেনশন ব্যবহার করে উপরে আইপি বসান।
+          </div>
+        </div>
+
+        <!-- ADMIN DASHBOARD VIEW -->
+        <div id="view-admin" class="hidden space-y-6 flex-1">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-4">
+            <div>
+              <h2 class="text-xl font-bold text-white">SETHU Admin Control Panel</h2>
+              <p class="text-xs text-slate-400">Real-time scan logs & supply chain flow metrics</p>
+            </div>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live Sync
+            </span>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl">
+              <span class="text-xs text-slate-400 block mb-1">Total Batches</span>
+              <span class="text-2xl font-bold text-white" id="stat-total-batches">2</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl">
+              <span class="text-xs text-slate-400 block mb-1">Aggregated Scans</span>
+              <span class="text-2xl font-bold text-emerald-400" id="stat-total-scans">17</span>
+            </div>
+            <div class="bg-slate-900 border border-slate-800/80 p-4 rounded-2xl">
+              <span class="text-xs text-slate-400 block mb-1">Restock Alerts</span>
+              <span class="text-2xl font-bold text-amber-400" id="stat-total-restocks">0</span>
+            </div>
+          </div>
+
+          <!-- Custom Dynamic Bar Chart -->
+          <div class="bg-slate-900 border border-slate-800 p-5 rounded-2xl">
+            <h3 class="text-sm font-bold text-slate-300 mb-4">Batch Scan Activity Analytics</h3>
+            <div class="h-44 flex items-end justify-around gap-4 pt-4 border-b border-slate-800" id="chart-bars-container">
+              <!-- Bars will render dynamically here -->
+            </div>
+          </div>
+
+          <!-- Live Activity Log -->
+          <div class="bg-slate-900/60 border border-slate-800/60 p-4 rounded-2xl">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Real-time System Logs</h3>
+            <div id="admin-log" class="space-y-2 max-h-32 overflow-y-auto text-xs mono text-slate-400">
+              <!-- Logs will inject here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- RETAILER PORTAL VIEW -->
+        <div id="view-retailer" class="hidden space-y-6 flex-1">
+          <div class="border-b border-slate-800 pb-4">
+            <h2 class="text-xl font-bold text-white">One-Click Retailer Restock Portal</h2>
+            <p class="text-xs text-slate-400">Replenish exhausted stock with auto-distributor triggers</p>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
+            <h3 class="text-sm font-bold text-slate-200">Trigger Automatic Re-order</h3>
+            <p class="text-xs text-slate-400">Select any active batch to send an automated distributor dispatch request.</p>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <button onclick="triggerRestock('FD-2026-102')" class="p-4 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-900 transition text-left group">
+                <span class="block font-bold text-emerald-400 text-sm mb-1">Atta Premium</span>
+                <span class="block text-xs text-slate-400 mb-3">Batch ID: FD-2026-102</span>
+                <span class="inline-flex items-center gap-1.5 text-xs text-amber-400 group-hover:underline">
+                  Quick Restock ⚡
+                </span>
+              </button>
+              <button onclick="triggerRestock('FD-2026-103')" class="p-4 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-900 transition text-left group">
+                <span class="block font-bold text-teal-400 text-sm mb-1">Atta Regular</span>
+                <span class="block text-xs text-slate-400 mb-3">Batch ID: FD-2026-103</span>
+                <span class="inline-flex items-center gap-1.5 text-xs text-amber-400 group-hover:underline">
+                  Quick Restock ⚡
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Interactive Mobile Phone Simulator View -->
+      <div id="mobile-simulator-column" class="lg:col-span-5 flex flex-col items-center justify-center">
+        
+        <!-- Mock Phone Wrapper -->
+        <div id="phone-frame-wrapper" class="w-full max-w-[360px] h-[720px] rounded-[50px] border-[12px] border-slate-950 bg-slate-950 shadow-3xl overflow-hidden relative ring-4 ring-slate-800/50 flex flex-col justify-between">
+          
+          <!-- Speaker & Camera Notch (Hidden in standalone mobile view) -->
+          <div id="phone-notch" class="absolute top-0 left-1/2 -translate-x-1/2 w-36 h-6 bg-slate-950 rounded-b-2xl z-50 flex items-center justify-center gap-2">
+            <div class="w-12 h-1 bg-slate-800 rounded-full"></div>
+            <div class="w-2.5 h-2.5 bg-slate-900 rounded-full"></div>
+          </div>
+
+          <!-- Screen UI Container (Mobile Webpage Sim) -->
+          <div class="flex-1 bg-slate-50 text-slate-900 overflow-y-auto pb-24 relative pt-8 flex flex-col" id="mobile-screen">
+            
+            <!-- Mobile Navigation Bar -->
+            <div class="px-4 py-3 bg-slate-900 text-white flex justify-between items-center shadow-md">
+              <span class="font-bold text-xs tracking-wider uppercase">SETHU Verify</span>
+              <span id="mobile-verification-badge" class="bg-amber-500/25 text-amber-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-amber-500/30">
+                ⌛ Awaiting Scan
+              </span>
+            </div>
+
+            <!-- Verification Loader (Hidden by default) -->
+            <div id="mobile-loader" class="hidden absolute inset-0 bg-slate-50/95 z-40 flex flex-col items-center justify-center gap-3">
+              <div class="h-10 w-10 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+              <p class="text-xs font-semibold text-slate-600">Verifying Cryptographic Ledger Integrity...</p>
+            </div>
+
+            <!-- STATE 1: MOCK VIEWPORT FOR SCANNING (BEFORE SCAN) -->
+            <div id="mobile-unscanned-view" class="flex-1 flex flex-col justify-center items-center p-6 text-center space-y-6">
+              <div class="relative w-44 h-44 border-2 border-dashed border-slate-300 rounded-2xl flex items-center justify-center overflow-hidden bg-slate-100">
+                <!-- Glowing laser scanner -->
+                <div class="absolute left-0 right-0 h-0.5 bg-emerald-500 shadow-[0_0_8px_#10b981] scanner-line"></div>
+                <span class="text-4xl text-slate-400">📷</span>
+              </div>
+              <div class="space-y-2">
+                <h3 class="font-extrabold text-slate-800 text-base">Ready to Verify</h3>
+                <p class="text-xs text-slate-500 leading-relaxed max-w-xs mx-auto">
+                  পণ্যটি আসল নাকি নকল তা জানতে বাম পাশের কিউআর কোডটি স্ক্যান করুন অথবা <strong class="text-emerald-600 font-bold font-semibold">Simulate Device Scan</strong> বাটনে ক্লিক করুন।
+                </p>
+              </div>
+            </div>
+
+            <!-- STATE 2: DYNAMIC MOBILE CORE CONTENT (SHOWN ONLY AFTER VERIFICATION) -->
+            <div class="p-4 space-y-4 hidden flex-1" id="mobile-scanned-content">
+              <!-- Meta Card -->
+              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 w-24 h-24 bg-emerald-500/5 rounded-full pointer-events-none"></div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Batch Verified</h3>
+                <h2 class="text-lg font-extrabold text-slate-800 mb-3" id="mob-product-name">Atta Premium</h2>
+
+                <div class="grid grid-cols-2 gap-y-3 gap-x-2 text-xs">
+                  <div>
+                    <span class="block text-[10px] text-slate-400 uppercase font-semibold">Batch ID</span>
+                    <span class="font-mono text-slate-800 font-bold" id="mob-batch-id">FD-2026-102</span>
+                  </div>
+                  <div>
+                    <span class="block text-[10px] text-slate-400 uppercase font-semibold">Factory Sourced</span>
+                    <span class="text-slate-800 font-medium" id="mob-factory">Nabil Flour Unit-2</span>
+                  </div>
+                  <div>
+                    <span class="block text-[10px] text-slate-400 uppercase font-semibold">Mfg. Date</span>
+                    <span class="text-slate-800 font-medium" id="mob-mfg">04 July, 2026</span>
+                  </div>
+                  <div>
+                    <span class="block text-[10px] text-slate-400 uppercase font-semibold">Expiry Date</span>
+                    <span class="text-slate-800 font-medium" id="mob-exp">04 Jan, 2027</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Interactive Timeline -->
+              <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+                <h3 class="text-xs font-extrabold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <span class="w-1.5 h-3 rounded bg-emerald-500"></span> Supply Chain Ledger Journey
+                </h3>
+
+                <!-- Dotted Timeline Track -->
+                <div class="relative pl-1">
+                  <!-- Segment 1: Source -->
+                  <div class="relative pl-6 pb-6 border-l-2 border-dotted border-emerald-300 last:border-0">
+                    <div class="absolute -left-[9px] top-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold shadow">
+                      ✓
+                    </div>
+                    <h4 class="text-xs font-bold text-slate-800">Wheat Collected</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Sourced from trusted crop clusters in Nachole & Chapainawabganj.</p>
+                  </div>
+
+                  <!-- Segment 2: Transport -->
+                  <div class="relative pl-6 pb-6 border-l-2 border-dotted border-emerald-300 last:border-0">
+                    <div class="absolute -left-[9px] top-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold shadow">
+                      ✓
+                    </div>
+                    <h4 class="text-xs font-bold text-slate-800">Transported</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Moved via NGI Logistics Fleet with temperature-controlled protection.</p>
+                  </div>
+
+                  <!-- Segment 3: Milling -->
+                  <div class="relative pl-6 pb-6 border-l-2 border-dotted border-emerald-300 last:border-0">
+                    <div class="absolute -left-[9px] top-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold shadow">
+                      ✓
+                    </div>
+                    <h4 class="text-xs font-bold text-slate-800">Milling</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Processed using state-of-the-art automated Swiss Buhler machinery.</p>
+                  </div>
+
+                  <!-- Segment 4: Quality -->
+                  <div class="relative pl-6 pb-6 border-l-2 border-dotted border-emerald-300 last:border-0">
+                    <div class="absolute -left-[9px] top-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold shadow">
+                      ✓
+                    </div>
+                    <h4 class="text-xs font-bold text-slate-800">Quality Tested</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Fortified with Vitamin A & Iron. Moisture level verified at 12.5%.</p>
+                  </div>
+
+                  <!-- Segment 5: Packaging -->
+                  <div class="relative pl-6 pb-6 border-l-2 border-dotted border-emerald-300 last:border-0">
+                    <div class="absolute -left-[9px] top-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold shadow">
+                      ✓
+                    </div>
+                    <h4 class="text-xs font-bold text-slate-800">Packed</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Sealed in tamper-proof smart packaging with holographic security layers.</p>
+                  </div>
+
+                  <!-- Segment 6: Delivery -->
+                  <div class="relative pl-6 last:border-0">
+                    <div class="absolute -left-[9px] top-0.5 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center text-[8px] text-white font-bold shadow">
+                      ✓
+                    </div>
+                    <h4 class="text-xs font-bold text-slate-800">Delivered</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5">Dispatched to urban hubs via regional distribution spokes.</p>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Geo Tracking Tracker Box -->
+              <div class="bg-blue-50 rounded-2xl p-4 border border-blue-100 flex items-center gap-3">
+                <span class="text-lg">📍</span>
+                <div>
+                  <span class="block text-[10px] font-bold uppercase text-blue-600 tracking-wider">Geo-Scan Registered</span>
+                  <span class="text-xs font-medium text-slate-700 block" id="mob-geo-city">Detecting tracking node...</span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Sticky Retailer Reorder Trigger Banner (Hidden before scanning) -->
+            <div id="mobile-action-banner" class="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-4 py-3 hidden gap-2 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] z-20">
+              <button onclick="mobileTriggerRestock()" class="w-full bg-gradient-to-r from-amber-500 to-amber-400 text-white font-bold text-xs py-3 rounded-xl shadow transition active:scale-95 text-center">
+                Are you a Retailer? Restock via One-Click
+              </button>
+            </div>
+
+          </div>
+
+          <!-- Home Button Strip (Hidden on standalone mobile scan) -->
+          <div id="phone-home-button" class="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-28 h-1.5 bg-slate-800 rounded-full"></div>
+        </div>
+
+        <span id="simulator-label" class="text-xs text-slate-500 mt-3">Interactive Mobile Frame Simulator</span>
+      </div>
+
+    </div>
+
+    <!-- Live Status Footer (Hidden on standalone mobile scan) -->
+    <footer id="global-footer" class="border-t border-slate-800 bg-slate-950 py-4 px-6 text-center text-xs text-slate-500">
+      <p>Axiom Forge Prototype Engine · Powered by LocalSync Ledger · Clean Web App</p>
+    </footer>
+  </div>
+
+  <script>
+    // --- DATABASE CORE ---
+    const defaultBatches = [
+      {
+        id: 'FD-2026-102',
+        product_name: 'Atta Premium (AxiomForge Special)',
+        mfg_date: '2026-07-04',
+        expiry_date: '2027-01-04',
+        factory: 'Nabil Auto Flour Mills, Unit-2, Rajshahi',
+        scan_count: 12
+      },
+      {
+        id: 'FD-2026-103',
+        product_name: 'Atta Regular (Standard Quality)',
+        mfg_date: '2026-07-01',
+        expiry_date: '2027-01-01',
+        factory: 'Nabil Auto Flour Mills, Unit-1, Rajshahi',
+        scan_count: 5
+      }
+    ];
+
+    let isScanned = false; // Mobile viewport state tracker
+
+    function getDB() {
+      const data = localStorage.getItem('sethu_batches');
+      if (!data) {
+        localStorage.setItem('sethu_batches', JSON.stringify(defaultBatches));
+        return defaultBatches;
+      }
+      return JSON.parse(data);
+    }
+
+    function saveDB(data) {
+      localStorage.setItem('sethu_batches', JSON.stringify(data));
+      window.dispatchEvent(new Event('storage'));
+    }
+
+    // --- VIEW MANAGEMENT ---
+    function switchView(viewName) {
+      const views = ['landing', 'admin', 'retailer'];
+      views.forEach(v => {
+        const viewEl = document.getElementById(`view-${v}`);
+        const btnEl = document.getElementById(`btn-${v}`);
+        if (v === viewName) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-emerald-500 text-white shadow";
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = "px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 text-slate-400 hover:text-slate-200";
+        }
+      });
+      addSystemLog(`User switched UI view context to: ${viewName.toUpperCase()}`);
+    }
+
+    // --- SYSTEM LOGS & TOASTS ---
+    function addSystemLog(text) {
+      const logBox = document.getElementById('admin-log');
+      if (!logBox) return;
+      const timeStr = new Date().toLocaleTimeString();
+      const newLog = document.createElement('p');
+      newLog.className = 'border-l border-emerald-500/30 pl-2 leading-relaxed';
+      newLog.innerHTML = `<span class="text-emerald-400 font-semibold">[${timeStr}]</span> ${text}`;
+      logBox.prepend(newLog);
+    }
+
+    function showToast(title, body) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'bg-slate-900 border-l-4 border-emerald-500 border border-slate-800 p-4 rounded-xl shadow-2xl flex flex-col gap-1 transition-all duration-300 transform translate-x-12 opacity-0';
+      toast.innerHTML = `
+        <h4 class="font-bold text-xs text-white uppercase tracking-wider">${title}</h4>
+        <p class="text-xs text-slate-400 leading-tight">${body}</p>
+      `;
+      container.appendChild(toast);
+      
+      setTimeout(() => {
+        toast.classList.remove('translate-x-12', 'opacity-0');
+      }, 50);
+
+      setTimeout(() => {
+        toast.classList.add('translate-x-12', 'opacity-0');
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    // --- GEOLOCATION HELPER ---
+    const bdGeoAreas = [
+      'Rajshahi Sadar, Rajshahi',
+      'Boalia, Rajshahi Division',
+      'Chapainawabganj Town, Rajshahi',
+      'Dhaka Central, Dhaka Division',
+      'Mirpur Sector-10, Dhaka',
+      'Halishahar, Chittagong',
+      'Khulna Sadar, Khulna'
+    ];
+
+    function getRandomGeoArea() {
+      return bdGeoAreas[Math.floor(Math.random() * bdGeoAreas.length)];
+    }
+
+    // --- QR CODE CONTROLLER ---
+    let qrEngineInstance = null;
+
+    function renderDynamicQR(customUrl = null) {
+      const qrEl = document.getElementById('qrcode');
+      if (!qrEl) return;
+      qrEl.innerHTML = ''; 
+
+      let routeAddress = customUrl;
+      if (!routeAddress) {
+        let baseAddress = window.location.href.split('#')[0];
+        // If it's a local blob or sandbox, warn user
+        if (baseAddress.startsWith('blob:') || baseAddress.includes('localhost') === false && baseAddress.startsWith('file:///')) {
+          document.getElementById('local-file-warning').classList.remove('hidden');
+        }
+        routeAddress = `${baseAddress}#verify/FD-2026-102`;
+      }
+      
+      document.getElementById('live-url-text').innerText = routeAddress;
+
+      qrEngineInstance = new QRCode(qrEl, {
+        text: routeAddress,
+        width: 180,
+        height: 180,
+        colorDark: "#0f172a",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+      });
+    }
+
+    // Generate dynamic QR based on user local IP
+    function updateIPAddress() {
+      const inputVal = document.getElementById('local-ip-input').value.trim();
+      if (!inputVal) {
+        showToast('Configuration Required', 'দয়া করে একটি লোকাল আইপি অ্যাড্রেস অথবা হোস্ট লিঙ্ক বসান।');
+        return;
+      }
+      
+      let targetIp = inputVal;
+      if (!targetIp.startsWith('http://') && !targetIp.startsWith('https://')) {
+        targetIp = 'http://' + targetIp;
+      }
+      
+      const networkRoute = `${targetIp}/sethu_simulator.html#verify/FD-2026-102`;
+      renderDynamicQR(networkRoute);
+      showToast('Network QR Updated', 'লোকাল নেটওয়ার্ক স্ক্যান করার জন্য নতুন কিউআর কোড জেনারেট হয়েছে!');
+      addSystemLog(`QR Engine: Generated custom routing target -> ${networkRoute}`);
+    }
+
+    // --- REALTIME RESPONSIVE ROUTING (THE CRUCIAL FIX) ---
+    // If scanning with a real phone, hide desktop wrap, full-screen mobile.
+    function applyResponsiveView() {
+      const isVerifyRoute = window.location.hash.startsWith('#verify/');
+      const globalHeader = document.getElementById('global-header');
+      const desktopCol = document.getElementById('desktop-simulator-column');
+      const mobileCol = document.getElementById('mobile-simulator-column');
+      const phoneWrapper = document.getElementById('phone-frame-wrapper');
+      const phoneNotch = document.getElementById('phone-notch');
+      const phoneHomeBtn = document.getElementById('phone-home-button');
+      const simulatorLabel = document.getElementById('simulator-label');
+      const globalFooter = document.getElementById('global-footer');
+      const workspaceGrid = document.getElementById('workspace-grid');
+      const mobileScreen = document.getElementById('mobile-screen');
+
+      if (isVerifyRoute) {
+        // standalone mobile verification view activated!
+        if (globalHeader) globalHeader.classList.add('hidden');
+        if (desktopCol) desktopCol.classList.add('hidden');
+        if (globalFooter) globalFooter.classList.add('hidden');
+        if (phoneNotch) phoneNotch.classList.add('hidden');
+        if (phoneHomeBtn) phoneHomeBtn.classList.add('hidden');
+        if (simulatorLabel) simulatorLabel.classList.add('hidden');
+
+        // Reset grid structure to make the phone component go full-screen
+        if (workspaceGrid) {
+          workspaceGrid.className = "flex-1 w-full p-0 m-0";
+        }
+        if (mobileCol) {
+          mobileCol.className = "w-full min-h-screen flex flex-col bg-slate-50";
+        }
+        if (phoneWrapper) {
+          phoneWrapper.className = "w-full min-h-screen rounded-none border-0 bg-slate-50 flex flex-col justify-between shadow-none ring-0 max-w-none h-auto";
+        }
+        if (mobileScreen) {
+          mobileScreen.className = "flex-1 bg-slate-50 text-slate-900 pb-24 relative pt-4 flex flex-col";
+        }
+      } else {
+        // Desktop simulator default layouts restored
+        if (globalHeader) globalHeader.classList.remove('hidden');
+        if (desktopCol) desktopCol.classList.remove('hidden');
+        if (globalFooter) globalFooter.classList.remove('hidden');
+        if (phoneNotch) phoneNotch.classList.remove('hidden');
+        if (phoneHomeBtn) phoneHomeBtn.classList.remove('hidden');
+        if (simulatorLabel) simulatorLabel.classList.remove('hidden');
+
+        if (workspaceGrid) {
+          workspaceGrid.className = "flex-1 max-w-7xl w-full mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8";
+        }
+        if (mobileCol) {
+          mobileCol.className = "lg:col-span-5 flex flex-col items-center justify-center";
+        }
+        if (phoneWrapper) {
+          phoneWrapper.className = "w-full max-w-[360px] h-[720px] rounded-[50px] border-[12px] border-slate-950 bg-slate-950 shadow-3xl overflow-hidden relative ring-4 ring-slate-800/50 flex flex-col justify-between";
+        }
+        if (mobileScreen) {
+          mobileScreen.className = "flex-1 bg-slate-50 text-slate-900 overflow-y-auto pb-24 relative pt-8 flex flex-col";
+        }
+      }
+    }
+
+    // --- SCAN SIMULATOR ACTION ---
+    function simulateScan(batchId) {
+      const loader = document.getElementById('mobile-loader');
+      loader.classList.remove('hidden');
+
+      const randomGeo = getRandomGeoArea();
+
+      let db = getDB();
+      const matchIndex = db.findIndex(b => b.id === batchId);
+      if (matchIndex !== -1) {
+        db[matchIndex].scan_count += 1;
+        saveDB(db);
+
+        setTimeout(() => {
+          loader.classList.add('hidden');
+          
+          isScanned = true;
+          document.getElementById('mobile-unscanned-view').classList.add('hidden');
+          document.getElementById('mobile-scanned-content').classList.remove('hidden');
+          document.getElementById('mobile-action-banner').classList.remove('hidden');
+          document.getElementById('mobile-action-banner').classList.add('flex');
+
+          // Change badge style to verified
+          const badge = document.getElementById('mobile-verification-badge');
+          badge.className = "bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-500/30 animate-pulse";
+          badge.innerText = "✓ QR Verified Purity";
+
+          updateMobileView(db[matchIndex], randomGeo);
+          
+          showToast('Scan Event Logged', `Batch ${batchId} verified successfully from ${randomGeo}`);
+          addSystemLog(`Realtime Scan update triggered for [${batchId}] inside Database ledger (+1).`);
+        }, 1200);
+      }
+    }
+
+    function updateMobileView(batchObj, geoName) {
+      document.getElementById('mob-product-name').innerText = batchObj.product_name;
+      document.getElementById('mob-batch-id').innerText = batchObj.id;
+      document.getElementById('mob-factory').innerText = batchObj.factory.split(',')[0];
+      document.getElementById('mob-mfg').innerText = batchObj.mfg_date;
+      document.getElementById('mob-exp').innerText = batchObj.expiry_date;
+      document.getElementById('mob-geo-city').innerText = geoName || 'Rajshahi Sadar, Rajshahi';
+    }
+
+    // --- RETAILER INTEGRATION ---
+    function triggerRestock(batchId) {
+      const db = getDB();
+      const matched = db.find(b => b.id === batchId);
+      if (matched) {
+        showToast('Restock Request Sent', `Auto-Reorder generated for: ${matched.product_name}`);
+        addSystemLog(`RETAILER AUTO-RESTOCK: Generated distributor shipping order for: ${matched.product_name} (${batchId}).`);
+        
+        const countEl = document.getElementById('stat-total-restocks');
+        if (countEl) countEl.innerText = parseInt(countEl.innerText) + 1;
+      }
+    }
+
+    function mobileTriggerRestock() {
+      const activeMobileBatchId = document.getElementById('mob-batch-id').innerText;
+      triggerRestock(activeMobileBatchId);
+    }
+
+    // --- DYNAMIC GRAPH ENGINE ---
+    function renderAdminChart() {
+      const container = document.getElementById('chart-bars-container');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const db = getDB();
+      const maxScans = Math.max(...db.map(b => b.scan_count), 1);
+
+      db.forEach((batch, idx) => {
+        const heightPercent = Math.min((batch.scan_count / maxScans) * 80 + 20, 100);
+        
+        const barColumn = document.createElement('div');
+        barColumn.className = 'flex-1 flex flex-col items-center justify-end h-full gap-2 group';
+        barColumn.innerHTML = `
+          <span class="opacity-0 group-hover:opacity-100 transition duration-200 bg-slate-950 border border-slate-800 text-[10px] text-emerald-400 font-bold px-2 py-0.5 rounded-md -translate-y-1 block shadow">
+            ${batch.scan_count} Scans
+          </span>
+          <div class="w-full max-w-[40px] bg-gradient-to-t ${idx === 0 ? 'from-emerald-600 to-emerald-400' : 'from-teal-600 to-teal-400'} rounded-t-lg transition-all duration-500 ease-out shadow-lg shadow-emerald-500/10 hover:brightness-110 cursor-pointer" style="height: ${heightPercent}%;"></div>
+          <span class="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">${batch.id.substring(8)}</span>
+        `;
+        container.appendChild(barColumn);
+      });
+    }
+
+    function syncUIFromDB() {
+      const db = getDB();
+      const totBatches = document.getElementById('stat-total-batches');
+      const totScans = document.getElementById('stat-total-scans');
+      if (totBatches) totBatches.innerText = db.length;
+      if (totScans) {
+        const sumScans = db.reduce((acc, current) => acc + current.scan_count, 0);
+        totScans.innerText = sumScans;
+      }
+      renderAdminChart();
+    }
+
+    // --- HASH ROUTING SIMULATOR ---
+    function checkRouting() {
+      const hash = window.location.hash;
+      const db = getDB();
+      
+      if (hash && hash.startsWith('#verify/')) {
+        const batchId = hash.split('#verify/')[1];
+        const matched = db.find(b => b.id === batchId);
+        if (matched) {
+          matched.scan_count += 1;
+          saveDB(db);
+          
+          const randGeo = getRandomGeoArea();
+          
+          isScanned = true;
+          document.getElementById('mobile-unscanned-view').classList.add('hidden');
+          document.getElementById('mobile-scanned-content').classList.remove('hidden');
+          document.getElementById('mobile-action-banner').classList.remove('hidden');
+          document.getElementById('mobile-action-banner').classList.add('flex');
+
+          // Set verified state
+          const badge = document.getElementById('mobile-verification-badge');
+          badge.className = "bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-500/30 animate-pulse";
+          badge.innerText = "✓ QR Verified Purity";
+
+          updateMobileView(matched, randGeo);
+          applyResponsiveView();
+          
+          showToast('Real Scan Processed', `Scan verified successfully for: ${matched.product_name}`);
+          addSystemLog(`ROUTE INTEGRITY: Physical client verified batch: ${batchId} via route redirect.`);
+        }
+      } else {
+        applyResponsiveView();
+      }
+    }
+
+    // Initialize application logic
+    window.onload = function() {
+      getDB();
+      renderDynamicQR();
+
+      const db = getDB();
+      updateMobileView(db[0], 'Rajshahi Sadar, Rajshahi');
+      syncUIFromDB();
+      
+      addSystemLog('System Engine Booted: SETHU ledger sync is currently online.');
+      addSystemLog('Realtime socket client loaded on loop interface.');
+
+      checkRouting();
+    }
+
+    // Listen to hash changes (when back button is pressed or scanned again)
+    window.addEventListener('hashchange', checkRouting);
+
+    window.addEventListener('storage', () => {
+      syncUIFromDB();
+    });
+  </script>
+</body>
+</html>
+
